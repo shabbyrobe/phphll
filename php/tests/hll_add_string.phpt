@@ -26,7 +26,7 @@ echo "$cnt ".($cnt == 1 ? 'OK' : 'NOPE');
 
 echo "\nArray of strings: ";
 $hll = hll_create();
-hll_add($hll, ['a', 'b']);
+hll_add($hll, array('a', 'b'));
 $cnt = hll_count($hll);
 echo "$cnt ".($cnt == 2 ? 'OK' : 'NOPE');
 
@@ -34,4 +34,4 @@ echo "$cnt ".($cnt == 2 ? 'OK' : 'NOPE');
 Empty string considered identical: 1 OK
 Empty string different to non-empty: 2 OK
 Non-empty strings identical: 1 OK
-Array of strings: 2 OKK
+Array of strings: 2 OK
