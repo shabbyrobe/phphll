@@ -7,11 +7,17 @@ php:
     - 5.5
     - 5.6
 
+
 script:
     - sudo apt-get install -qq pcregrep
     - make libhll.a
     - make php
-    - cd php && NO_INTERACTION=1 php -n run-tests.php -n -d 'memory_limit=2048M' -d 'extension_dir=modules' -d 'extension=hll.so' -p `phpenv which php` --show-diff > out.log
+    - cd php && NO_INTERACTION=1 php -n run-tests.php -n -d 'extension_dir=modules' -d 'extension=hll.so' -p `phpenv which php` --show-diff > out.log
     - cat out.log
     - diff -qq <( pcregrep -o1 'Number of tests\s*:\s*(\d+)' out.log ) <( pcregrep -o1 'Tests passed\s*:\s*(\d+)' out.log ) > /dev/null
+
+
+matrix:
+  allow_failures:
+    - php: 5.2
 
