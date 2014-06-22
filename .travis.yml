@@ -9,5 +9,5 @@ php:
 script:
     - make libhll.a
     - make php
-    - NO_INTERACTION=1 php -n php/run-tests.php -n -d 'extension=php/modules/hll.so' -p `phpenv which php` --show-diff
+    - cd php && NO_INTERACTION=1 php -n run-tests.php -n -d 'extension=modules/hll.so' -p `phpenv which php` --show-diff
 
