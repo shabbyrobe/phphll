@@ -34,4 +34,4 @@ echo "$cnt ".($cnt == 2 ? 'OK' : 'NOPE');
 Empty string considered identical: 1 OK
 Empty string different to non-empty: 2 OK
 Non-empty strings identical: 1 OK
-Array of strings: 2 OK
+Array of strings: 2 OKK
