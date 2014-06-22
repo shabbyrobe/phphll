@@ -1,6 +1,8 @@
 Redis HyperLogLog PHP Extension
 ===============================
 
+.. image:: https://travis-ci.org/shabbyrobe/phphll.svg
+
 This project lifts the ``hyperloglog.c`` implementation from Redis 2.8.11
 (http://redis.io) and wraps it in a PHP extension.
 
@@ -39,6 +41,9 @@ Warnings and Disclaimers
 - Dumping and loading methods are provided, but if the internal structure of the
   HyperLogLog representation changes in any backwards incompatible way, no guarantees are
   currently made that dumping and loading will work in this scenario.
+
+- This should work with 5.2, but I haven't managed to get the Travis tests to pass yet.
+  Please let me know if it works for you.
 
 
 Bogus Benchmarks
