@@ -60,7 +60,7 @@ PHPAPI int hll_args_to_list(INTERNAL_FUNCTION_PARAMETERS, hll **sources_in, int 
     hll *sources = NULL;
 
     args = emalloc(argc * sizeof(zval*));
-    if (zend_get_parameters_array(ht, argc TSRMLS_CC, args) == FAILURE) {
+    if (zend_get_parameters_array(ht, argc, args) == FAILURE) {
         RETVAL_FALSE;
         goto cleanup;
     }
