@@ -11,16 +11,19 @@ of both the C code and comments found in the Redis project.
 HyperLogLog is neatly described by Salvatore himself in his blog post announcing support
 in Redis [1]_:
 
-> HyperLogLog is remarkable as it provides a very good approximation of the cardinality of a
-> set even using a very small amount of memory. In the Redis implementation it only uses
-> 12kbytes per key to count with a standard error of 0.81%, and there is no limit to the
-> number of items you can count, unless you approach 2^64 items (which seems quite
-> unlikely).
+    HyperLogLog is remarkable as it provides a very good approximation of the cardinality
+    of a set even using a very small amount of memory. In the Redis implementation it only
+    uses 12kbytes per key to count with a standard error of 0.81%, and there is no limit
+    to the number of items you can count, unless you approach 2^64 items (which seems
+    quite unlikely).
 
 .. [1] http://antirez.com/news/75
 
 This extension is intended for situations where you want the flexibility of this data
 structure without the overhead of communicating with Redis.
+
+.. contents::
+    :depth: 2
 
 
 Warnings and Disclaimers
@@ -67,7 +70,7 @@ way I'll learn::
     122.82
 
     ## PHP, hll.so, one pfAdd() per entry
-    $ cat /tmp/ids | /usr/bin/time -f '%e' php -d 'extension=php/.libs/hll.so' junk/hllcnt.php
+    $ cat /tmp/ids | /usr/bin/time -f '%e' php -d 'extension=php/modules/hll.so' junk/hllcnt.php
     67.27
 
     ## C, direct, one pfAdd() per entry
@@ -83,7 +86,7 @@ following command::
 
     make php
 
-The resulting library will be in ``php/.libs/hll.so``. You can install it like so::
+The resulting library will be in ``php/modules/hll.so``. You can install it like so::
 
     cd php; sudo make install
 
