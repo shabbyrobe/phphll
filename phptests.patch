@@ -1,5 +1,5 @@
---- /usr/local/src/php-5.5.11-cli/run-tests.php	2014-04-01 23:32:03.000000000 +1100
-+++ /usr/local/lib/php/build/run-tests.php	2014-06-22 22:37:02.925393619 +1000
+--- /usr/local/lib/php/build/run-tests.php	2014-06-22 22:41:20.366816746 +1000
++++ php/run-tests.php	2014-06-23 19:23:52.683957528 +1000
 @@ -581,7 +581,7 @@
  					if (!$valgrind_header) {
  						error("Valgrind returned no version info, cannot proceed.\nPlease check if Valgrind is installed.");
@@ -9,3 +9,11 @@
  						if ($replace_count != 1 || !is_numeric($valgrind_version)) {
  							error("Valgrind returned invalid version info (\"$valgrind_header\"), cannot proceed.");
  						}
+@@ -1073,6 +1073,7 @@
+ 	$data = '';
+ 
+ 	$bin_env = array();
++	var_dump($env);
+ 	foreach((array)$env as $key => $value) {
+ 		$bin_env[$key] = $value;
+ 	}
