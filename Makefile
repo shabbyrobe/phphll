@@ -34,6 +34,6 @@ php-test: php
 	cd php && NO_INTERACTION=1 TEST_PHP_ARGS=--show-diff make test
 
 php-memtest: php
-	cat phptests.patch | patch php/run-tests.php
+	cp run-tests.php php
 	cd php && echo 's' | TEST_PHP_ARGS=-m make test
 

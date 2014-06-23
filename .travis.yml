@@ -12,6 +12,7 @@ script:
     - sudo apt-get install -qq pcregrep
     - make libhll.a
     - make php
+    - cp run-tests.php php
     - cd php && NO_INTERACTION=1 php -d 'memory_limit=1024M' -n run-tests.php -n -d 'extension_dir=modules' -d 'extension=hll.so' -p `phpenv which php` --show-diff > out.log
     - cat out.log
     - diff -qq <( pcregrep -o1 'Number of tests\s*:\s*(\d+)' out.log ) <( pcregrep -o1 'Tests passed\s*:\s*(\d+)' out.log ) > /dev/null
