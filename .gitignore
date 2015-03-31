@@ -4,6 +4,7 @@ hllcnt
 *.orig
 *.a
 *.o
+tags
 
 php/.*
 php/acinclude.m4

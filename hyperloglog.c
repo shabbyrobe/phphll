@@ -112,6 +112,8 @@
  * XZERO opcode is represented by two bytes 01xxxxxx yyyyyyyy. The 14-bit
  * integer represented by the bits 'xxxxxx' as most significant bits and
  * 'yyyyyyyy' as least significant bits, plus 1, means that there are N
+ * registers set to 0. This opcode can represent from 0 to 16384 contiguous
+ * registers set to the value of 0.
  *
  * VAL opcode is represented as 1vvvvvxx. It contains a 5-bit integer
  * representing the value of a register, and a 2-bit integer representing
@@ -1436,7 +1438,7 @@ void pfcountCommand(redisClient *c) {
         for (j = 1; j < c->argc; j++) {
             /* Check type and size. */
             robj *o = lookupKeyRead(c->db,c->argv[j]);
-            if (o == NULL) continue; /* Assume empty HLL for non existing var. */
+            if (o == NULL) continue; /* Assume empty HLL for non existing var.*/
             if (isHLLObjectOrReply(c,o) != REDIS_OK) return;
 
             /* Merge with this HLL with our 'max' HHL by setting max[i]
@@ -1456,7 +1458,7 @@ void pfcountCommand(redisClient *c) {
      *
      * The user specified a single key. Either return the cached value
      * or compute one and update the cache. */
-    o = lookupKeyRead(c->db,c->argv[1]);
+    o = lookupKeyWrite(c->db,c->argv[1]);
     if (o == NULL) {
         /* No key? Cardinality is zero since no element was added, otherwise
          * we would have a key as HLLADD creates it as a side effect. */
@@ -1572,7 +1574,7 @@ void pfmergeCommand(redisClient *c) {
  * Something that is not easy to test from within the outside. */
 #define HLL_TEST_CYCLES 1000
 void pfselftestCommand(redisClient *c) {
-    int j, i;
+    unsigned int j, i;
     sds bitcounters = sdsnewlen(NULL,HLL_DENSE_SIZE);
     struct hllhdr *hdr = (struct hllhdr*) bitcounters, *hdr2;
     robj *o = NULL;
@@ -1609,7 +1611,7 @@ void pfselftestCommand(redisClient *c) {
      * The test adds unique elements and check that the estimated value
      * is always reasonable bounds.
      *
-     * We check that the error is smaller than 4 times than the expected
+     * We check that the error is smaller than a few times than the expected
      * standard error, to make it very unlikely for the test to fail because
      * of a "bad" run.
      *
@@ -1645,8 +1647,16 @@ void pfselftestCommand(redisClient *c) {
         /* Check error. */
         if (j == checkpoint) {
             int64_t abserr = checkpoint - (int64_t)hllCount(hdr,NULL);
+            uint64_t maxerr = ceil(relerr*6*checkpoint);
+
+            /* Adjust the max error we expect for cardinality 10
+             * since from time to time it is statistically likely to get
+             * much higher error due to collision, resulting into a false
+             * positive. */
+            if (j == 10) maxerr = 1;
+
             if (abserr < 0) abserr = -abserr;
-            if (abserr > (uint64_t)(relerr*4*checkpoint)) {
+            if (abserr > (int64_t)maxerr) {
                 addReplyErrorFormat(c,
                     "TESTFAILED Too big error. card:%llu abserr:%llu",
                     (unsigned long long) checkpoint,
@@ -1673,7 +1683,7 @@ void pfdebugCommand(redisClient *c) {
     robj *o;
     int j;
 
-    o = lookupKeyRead(c->db,c->argv[2]);
+    o = lookupKeyWrite(c->db,c->argv[2]);
     if (o == NULL) {
         addReplyError(c,"The specified key does not exist");
         return;

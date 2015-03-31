@@ -16,9 +16,7 @@ hll_add($h3, 'jkl');
 
 var_dump(hll_count($h1, $h2));
 var_dump(hll_count($h1, $h2, $h3));
-var_dump(hll_count(array($h1, $h2, $h3)));
 
 --EXPECT--
 int(3)
-int(4)
 int(4)

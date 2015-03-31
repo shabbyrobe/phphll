@@ -20,11 +20,7 @@ var_dump(hll_count($hm));
 $hm = hll_merge($h1, $h2, $h3);
 var_dump(hll_count($hm));
 
-$hm = hll_merge(array($h1, $h2, $h3));
-var_dump(hll_count($hm));
-
 --EXPECT--
 int(3)
-int(4)
 int(4)
 
