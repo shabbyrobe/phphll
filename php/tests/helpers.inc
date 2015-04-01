@@ -24,7 +24,7 @@ define("WORDS_LINES", 72786);
 
 function words_each($callback, $args)
 {
-    $h = bzopen(__DIR__.'/words.bz2', 'r');
+    $h = gzopen(__DIR__.'/words.gz', 'r');
     while (!feof($h)) {
         $word = trim(fgets($h));
         $curArgs = $args;

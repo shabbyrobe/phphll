@@ -8,4 +8,4 @@ $hll = hll_create();
 hll_add($hll, $h);
 
 --EXPECTF--
-Warning: hll_add(): Invalid type in %s
+Warning: hll_add(): Argument could not be converted to string in %s
