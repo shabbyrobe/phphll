@@ -27,8 +27,11 @@ clean:
 	cd php && test -f Makefile && make clean || true
 	cd php && phpize --clean
 
-php: libhll.a
+php-full: libhll.a
 	cd php && phpize --clean && phpize && ./configure && make clean && make 
+
+php: libhll.a
+	cd php && make
 
 php-test: php
 	cd php && NO_INTERACTION=1 TEST_PHP_ARGS=--show-diff make test

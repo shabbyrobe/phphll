@@ -4,5 +4,6 @@ hll_count() - invalid resource
 <?php
 $hll = false;
 hll_count($hll);
+
 --EXPECTF--
-Warning: hll_count(): Supplied argument is not a valid HyperLogLog resource in %s
+Warning: hll_count(): Supplied argument is not a valid HyperLogLog resource or HyperLogLog class in %s

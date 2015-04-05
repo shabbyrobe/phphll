@@ -4,13 +4,20 @@ hll_add() - many different values
 <?php
 require 'helpers.inc';
 
-$hll = hll_create();
+{ // func
+    $hll = hll_create();
+    words_each('hll_add', array($hll));
+    $count = hll_count($hll);
+    var_dump(within_tolerance(WORDS_UNIQUE, $count));
+}
 
-words_each('hll_add', array($hll));
-
-$count = hll_count($hll);
-
-var_dump(hll_within_tolerance(WORDS_UNIQUE, $count));
+{ // OO
+    $hll = new HyperLogLog;
+    words_each('hll_add_obj', array($hll));
+    $count = $hll->count();
+    var_dump(within_tolerance(WORDS_UNIQUE, $count));
+}
 
 --EXPECT--
+bool(true)
 bool(true)

@@ -4,6 +4,8 @@ hllcnt
 *.orig
 *.a
 *.o
+*.so
+*.lo*
 tags
 
 php/.*
