@@ -6,20 +6,25 @@ require 'helpers.inc';
 
 function check_many_unique($hll)
 {
-    for ($i=1000000; $i<1010000; $i++) {
+    $count = 10000;
+    $offset = 1000000;
+    for ($i=$offset; $i < $offset+$count; $i++) {
         $hll instanceof HyperLogLog ? $hll->add($i) : hll_add($hll, $i);
     }
-    return verify($hll, 10000);
+    return verify($hll, $count);
 }
 
 function check_many_similar($hll)
 {
-    for ($i=1000000; $i<1001000; $i++) {
-        for ($j=0; $j<100; $j++) {
+    $count = 100;
+    $offset = 1000000;
+    $items = 100;
+    for ($i=$offset; $i < $offset+$count; $i++) {
+        for ($j=0; $j<$items; $j++) {
             $hll instanceof HyperLogLog ? $hll->add($j) : hll_add($hll, $j);
         }
     }
-    return verify($hll, 100);
+    return verify($hll, $items);
 }
 
 function check_empty($hll)

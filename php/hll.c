@@ -23,9 +23,11 @@
 	hll_resource = zend_read_property(hll_hyperloglog_ce, object, ZEND_STRL("hll"), 0 TSRMLS_CC); \
     ZEND_FETCH_RESOURCE(hll, robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor);
 
-#define HLL_OBJ_GET_RESOURCE(M, V, R) \
-	(R) = zend_read_property(hll_hyperloglog_ce, (M), ZEND_STRL("hll"), 0 TSRMLS_CC); \
-    (V) = (robj *) zend_fetch_resource(&in TSRMLS_CC, -1, PHP_HLL_DESCRIPTOR_RES_NAME, NULL, 1, hll_descriptor);
+#define HLL_OBJ_GET_RESOURCE(V, O) \
+    do { \
+        zval *hll_resource = zend_read_property(hll_hyperloglog_ce, (O), ZEND_STRL("hll"), 0 TSRMLS_CC); \
+        (V) = (robj *) zend_fetch_resource(&hll_resource TSRMLS_CC, -1, PHP_HLL_DESCRIPTOR_RES_NAME, NULL, 1, hll_descriptor); \
+    } while(0);
     // ZEND_FETCH_RESOURCE((V), robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor); \
 
 #ifndef PHP_FE_END
@@ -152,6 +154,74 @@ static void php_hll_descriptor_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
     hllFree(hll);
 }
 
+static int php_hll_serialize(zval *object, unsigned char **buffer, zend_uint *buf_len, zend_serialize_data *data TSRMLS_DC)
+{
+	robj *hll = NULL;
+    HLL_OBJ_GET_RESOURCE(hll, object);
+
+	smart_str buf = {0};
+	zval zv, *zv_ptr = &zv;
+	php_serialize_data_t serialize_data = (php_serialize_data_t) data;
+
+	PHP_VAR_SERIALIZE_INIT(serialize_data);
+
+    sds raw = hllRaw(hll);
+    ZVAL_STRINGL(zv_ptr, raw, sdslen(raw), 0);
+	php_var_serialize(&buf, &zv_ptr, &serialize_data TSRMLS_CC);
+    sdsfree(raw);
+
+	PHP_VAR_SERIALIZE_DESTROY(serialize_data);
+
+	*buffer = (unsigned char *) buf.c;
+	*buf_len = buf.len;
+
+	return SUCCESS;
+}
+
+static int php_hll_unserialize(zval **object, zend_class_entry *ce, const unsigned char *buf, zend_uint buf_len, zend_unserialize_data *data TSRMLS_DC)
+{
+	int retval = SUCCESS;
+	zval zv, *zv_ptr = &zv;
+    sds hll_str = NULL;
+    robj *hll = NULL;
+	const unsigned char *p, *max;
+
+	php_unserialize_data_t unserialize_data = (php_unserialize_data_t) data;
+	PHP_VAR_UNSERIALIZE_INIT(unserialize_data);
+
+	p = buf;
+	max = buf + buf_len;
+    INIT_ZVAL(zv);
+
+	if (!php_var_unserialize(&zv_ptr, &p, max, &unserialize_data TSRMLS_CC)
+		|| Z_TYPE_P(zv_ptr) != IS_STRING
+	) {
+		zend_throw_exception(NULL, "Could not unserialize HLL", 0 TSRMLS_CC);
+		goto fail;
+	}
+
+    hll_str = sdsnewlen(Z_STRVAL_P(zv_ptr), Z_STRLEN_P(zv_ptr));
+    if (hllLoad(&hll, hll_str) == FAILURE) {
+		zend_throw_exception(NULL, "Could not create HLL from unserialized string", 0 TSRMLS_CC);
+        goto fail;
+    }
+
+	object_init_ex(*object, hll_hyperloglog_ce);
+	Z_TYPE_P(*object) = IS_OBJECT;
+
+    int res = ZEND_REGISTER_RESOURCE(NULL, hll, hll_descriptor);
+    add_property_resource(*object, "hll", res);
+
+    goto cleanup;
+fail:
+    retval = FAILURE;
+cleanup:
+	PHP_VAR_UNSERIALIZE_DESTROY(unserialize_data);
+    zval_dtor(&zv);
+    sdsfree(hll_str);
+    return retval;
+}
+
 PHP_MINIT_FUNCTION(hll)
 {
     zend_class_entry ce = {0};
@@ -163,6 +233,9 @@ PHP_MINIT_FUNCTION(hll)
     hll_ce: { 
         INIT_CLASS_ENTRY(ce, "HyperLogLog", hll_hyperloglog_methods);
         hll_hyperloglog_ce = zend_register_internal_class(&ce TSRMLS_CC);
+        hll_hyperloglog_ce->serialize = php_hll_serialize;
+        hll_hyperloglog_ce->unserialize = php_hll_unserialize;
+        hll_hyperloglog_ce->clone = NULL;
 
         zend_declare_property_null(hll_hyperloglog_ce, ZEND_STRL("hll"), ZEND_ACC_PUBLIC TSRMLS_CC);
     }
@@ -375,38 +448,6 @@ cleanup:
     efree(hll_sources);
     efree(args);
     return;
-
-/*
-    int argc = 0;
-    zval ***args = NULL;
-
-    zval *object, *hll_resource;
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O+", &object, hll_hyperloglog_ce, &args, &argc) == FAILURE) {
-        goto cleanup;
-    }
-    
-    robj *hll_target = NULL;
-
-	hll_resource = zend_read_property(hll_hyperloglog_ce, object, ZEND_STRL("hll"), 0 TSRMLS_CC); \
-    ZEND_FETCH_RESOURCE(hll_target, robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor);
-    if (hll_target == NULL) {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "HLL could not be retrieved");
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    if (php_hll_merge(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, 1, hll_target) != SUCCESS) {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "HLL merge failed");
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    RETVAL_TRUE;
-
-cleanup:
-    efree(args);
-    return;
-*/
 }
 
 /* hll_add() {{{ */

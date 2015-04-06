@@ -6,7 +6,7 @@ require 'helpers.inc';
 
 function check($hll, $addfn)
 {
-    $total = 100000;
+    $total = 10000;
     for ($i=0; $i<$total; $i++) {
         $addfn($hll, "$i");
     }
@@ -14,8 +14,7 @@ function check($hll, $addfn)
 
     if (within_tolerance($total, $count)) {
         var_dump(true);
-    }
-    else {
+    } else {
         var_dump($total, $count, within_pct($total, $count));
     }
 }
