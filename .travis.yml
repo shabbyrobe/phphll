@@ -11,7 +11,7 @@ php:
 script:
     - sudo apt-get install -qq pcregrep
     - make libhll.a
-    - make php
+    - make php-full
     - cp run-tests.php php
     - cd php && NO_INTERACTION=1 php -d 'memory_limit=1024M' -n run-tests.php -n -d 'extension_dir=modules' -d 'extension=hll.so' -p `phpenv which php` --show-diff > out.log
     - cat out.log

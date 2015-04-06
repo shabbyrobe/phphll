@@ -4,6 +4,7 @@
 #include <zend_types.h>
 #include <ext/standard/php_var.h>
 
+/* {{{ macros */
 #define HLL_ARG_ONLY()\
     robj *hll;\
     zval *hll_resource;\
@@ -33,16 +34,14 @@
 #ifndef PHP_FE_END
 #define PHP_FE_END {NULL, NULL, NULL}
 #endif
+/* }}} */
 
 static int hll_descriptor;
 
 static zend_class_entry *hll_hyperloglog_ce;
 static zend_class_entry *hll_hyperloglogexception_ce;
 
-static int php_hll_load(INTERNAL_FUNCTION_PARAMETERS, robj **hll, char *input, int input_len);
-
-/* hll_create(), HyperLogLog->__construct {{{ */
-
+/* {{{ Helpers */
 static int php_hll_create(INTERNAL_FUNCTION_PARAMETERS, robj **hll, zend_bool allow_sparse)
 {
     int ret = FAILURE;
@@ -68,70 +67,6 @@ static int php_hll_create(INTERNAL_FUNCTION_PARAMETERS, robj **hll, zend_bool al
 cleanup:
     return ret;
 }
-
-
-ZEND_BEGIN_ARG_INFO_EX(ai_HyperLogLog___construct, 0, 0, 0)
-    ZEND_ARG_INFO(0, allowSparse)
-    ZEND_ARG_INFO(0, hllDump)
-ZEND_END_ARG_INFO()
-PHP_METHOD(HyperLogLog, __construct)
-{
-    zval *object = NULL;
-    zval *input = NULL;
-    robj *hll = NULL;
-
-	zend_error_handling error_handling;
-	zend_replace_error_handling(EH_THROW, hll_hyperloglogexception_ce, &error_handling TSRMLS_CC);
-
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|z", 
-                &object, hll_hyperloglog_ce, &input) == FAILURE) {
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    int is_null = input == NULL || Z_TYPE_P(input) == IS_NULL;
-    if (is_null || Z_TYPE_P(input) == IS_BOOL) {
-        zend_bool allow_sparse = is_null ? 0 : Z_BVAL_P(input);
-        if (php_hll_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, allow_sparse) != SUCCESS) {
-            RETVAL_FALSE;
-            goto cleanup;
-        }
-    }
-    else if (Z_TYPE_P(input) == IS_STRING) {
-        if (php_hll_load(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, Z_STRVAL_P(input), Z_STRLEN_P(input)) != SUCCESS) {
-            RETVAL_FALSE;
-            goto cleanup;
-        }
-    }
-
-    int res = ZEND_REGISTER_RESOURCE(NULL, hll, hll_descriptor);
-    add_property_resource(object, "hll", res);
-
-cleanup:
-    zend_restore_error_handling(&error_handling TSRMLS_CC);
-    return;
-}
-
-PHP_FUNCTION(hll_create)
-{
-    robj *hll;
-    zend_bool allow_sparse = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &allow_sparse) == FAILURE) {
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    if (php_hll_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, allow_sparse) != SUCCESS) {
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    ZEND_REGISTER_RESOURCE(return_value, hll, hll_descriptor);
-
-cleanup:
-    return;
-}
-/* }}} */
 
 static void php_hll_descriptor_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
@@ -207,7 +142,7 @@ cleanup:
     return retval;
 }
 
-static int hll_fetch_from_zval(zval *in, robj **out TSRMLS_DC)
+static int php_hll_from_zval(zval *in, robj **out TSRMLS_DC)
 {
     int ret = SUCCESS;
 
@@ -240,7 +175,7 @@ cleanup:
     return ret;
 }
 
-static int hll_array_to_list(INTERNAL_FUNCTION_PARAMETERS, HashTable *in, hll **out)
+static int php_hll_array_to_list(INTERNAL_FUNCTION_PARAMETERS, HashTable *in, hll **out)
 {
     int ret = FAILURE;
 
@@ -255,7 +190,7 @@ static int hll_array_to_list(INTERNAL_FUNCTION_PARAMETERS, HashTable *in, hll **
             zend_hash_get_current_data_ex(in, (void **)&current, &pos) == SUCCESS;
             zend_hash_move_forward_ex(in, &pos), i++) {
         
-        if (hll_fetch_from_zval(*current, &sources[i] TSRMLS_CC) == FAILURE) {
+        if (php_hll_from_zval(*current, &sources[i] TSRMLS_CC) == FAILURE) {
             goto fail;
         }
     }
@@ -268,7 +203,7 @@ cleanup:
     return ret;
 }
 
-static int hll_args_to_list(INTERNAL_FUNCTION_PARAMETERS, zval ***args, int sources_len, hll **sources_in)
+static int php_hll_args_to_list(INTERNAL_FUNCTION_PARAMETERS, zval ***args, int sources_len, hll **sources_in)
 {
     int ret = FAILURE;
 
@@ -278,7 +213,7 @@ static int hll_args_to_list(INTERNAL_FUNCTION_PARAMETERS, zval ***args, int sour
     sources = *sources_in;
 
     for (i = 0; i < sources_len; i++) {
-        if (hll_fetch_from_zval(*args[i], &sources[i] TSRMLS_CC) == FAILURE) {
+        if (php_hll_from_zval(*args[i], &sources[i] TSRMLS_CC) == FAILURE) {
             goto fail;
         }
     }
@@ -291,126 +226,22 @@ cleanup:
     return ret;
 }
 
-PHP_FUNCTION(hll_merge)
+static int php_hll_info(INTERNAL_FUNCTION_PARAMETERS, robj *hll)
 {
-    int argc = 0;
-    zval ***args = NULL;
-    hll *hll_sources = NULL;
-    int sources_len = 0;
+    array_init(return_value);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "+", &args, &argc) == FAILURE) {
-        goto cleanup;
-    }
-    
-    robj *hll_target = NULL;
-    hll_target = hllCreate();
-    if (hll_target == NULL) {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "HLL could not be created");
-        goto fail;
-    }
+    uint8_t type = ((struct hllhdr *)hll->ptr)->encoding;
+    if (type == HLL_DENSE)
+        add_assoc_string(return_value, "encoding", "dense", 1);
+    else if (type == HLL_SPARSE)
+        add_assoc_string(return_value, "encoding", "sparse", 1);
+    else 
+        add_assoc_string(return_value, "encoding", "unknown", 1);
 
-    if (argc == 1 && Z_TYPE_PP(*args) == IS_ARRAY) {
-        HashTable *hll_ht = Z_ARRVAL_PP(args[0]);
-        sources_len = zend_hash_num_elements(hll_ht);
-        hll_sources = emalloc(sizeof(hll) * sources_len);
-        if (hll_array_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, hll_ht, &hll_sources) != SUCCESS) {
-            goto fail;
-        }
-    }
-    else {
-        sources_len = argc;
-        hll_sources = emalloc(sizeof(hll) * argc);
-        if (hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
-            goto fail;
-        }
-    }
-
-    if (sources_len < 2) {
-        zend_wrong_param_count(TSRMLS_C);
-        goto fail;
-    }
-
-    if (pfMerge(hll_target, hll_sources, sources_len) != HLL_OK) {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expected array or resource");
-        goto fail;
-    }
-
-    ZEND_REGISTER_RESOURCE(return_value, hll_target, hll_descriptor);
-    goto cleanup;
-
-fail:
-    RETVAL_FALSE;
-    
-cleanup:
-    efree(hll_sources);
-    efree(args);
-    return;
+    return SUCCESS;
 }
 
-PHP_METHOD(HyperLogLog, merge)
-{
-    int argc = 0;
-    zval ***args = NULL;
-    hll *hll_sources = NULL;
-    int sources_len = 0;
-    zval *object, *hll_resource;
-
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O+", &object, hll_hyperloglog_ce, &args, &argc) == FAILURE) {
-        goto cleanup;
-    }
-
-    robj *hll_target = NULL;
-
-	hll_resource = zend_read_property(hll_hyperloglog_ce, object, ZEND_STRL("hll"), 0 TSRMLS_CC); \
-    ZEND_FETCH_RESOURCE(hll_target, robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor);
-    if (hll_target == NULL) {
-        php_error_docref(NULL TSRMLS_CC, E_ERROR, "HLL could not be retrieved");
-        goto fail;
-    }
-
-    if (argc == 1 && Z_TYPE_PP(*args) == IS_ARRAY) {
-        HashTable *hll_ht = Z_ARRVAL_PP(args[0]);
-        sources_len = zend_hash_num_elements(hll_ht) + 1;
-        hll_sources = emalloc(sizeof(hll) * sources_len);
-        if (hll_array_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, hll_ht, &hll_sources) != SUCCESS) {
-            goto fail;
-        }
-    }
-    else {
-        sources_len = argc + 1;
-        hll_sources = emalloc(sizeof(hll) * sources_len);
-        if (hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
-            goto fail;
-        }
-    }
-
-    if (sources_len < 2) {
-        zend_wrong_param_count(TSRMLS_C);
-        goto fail;
-    }
-
-    hll_sources[sources_len - 1] = hll_target;
-
-    if (pfMerge(hll_target, hll_sources, sources_len) != HLL_OK) {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expected array or resource");
-        goto fail;
-    }
-
-	RETVAL_ZVAL(getThis(), 1, 0);
-    goto cleanup;
-
-fail:
-    RETVAL_FALSE;
-    
-cleanup:
-    efree(hll_sources);
-    efree(args);
-    return;
-}
-
-/* hll_add() {{{ */
-
-static int php_hll_add(INTERNAL_FUNCTION_PARAMETERS, robj *hll, zval *data, int *updated) /* {{{2 */
+static int php_hll_add(INTERNAL_FUNCTION_PARAMETERS, robj *hll, zval *data, int *updated)
 {
     char **add_strings = NULL;
     int add_idx = 0;
@@ -488,14 +319,227 @@ cleanup:
     }
     
     return SUCCESS;
-} /* }}} */
+}
 
+static int php_hll_load(INTERNAL_FUNCTION_PARAMETERS, robj **hll, char *input, int input_len)
+{
+    int ret = FAILURE;
 
+    sds input_sds = sdsnewlen(input, input_len);
+
+    int res = hllLoad(hll, input_sds);
+    if (*hll == NULL || res != HLL_OK) {
+        if (*hll != NULL) hllFree(*hll);
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Supplied HLL dump was invalid");
+        RETVAL_FALSE;
+        goto cleanup;
+    }
+
+    ret = SUCCESS;
+
+cleanup:
+    if (input_sds != NULL) sdsfree(input_sds);
+    return ret;
+}
+/* }}} */
+
+/* {{{ proto void HyperLogLog::__construct([bool allowSparse = false])
+ * proto void HyperLogLog::__construct(string hllDump)
+ */
+PHP_METHOD(HyperLogLog, __construct)
+{
+    zval *object = NULL;
+    zval *input = NULL;
+    robj *hll = NULL;
+
+	zend_error_handling error_handling;
+	zend_replace_error_handling(EH_THROW, hll_hyperloglogexception_ce, &error_handling TSRMLS_CC);
+
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|z", 
+                &object, hll_hyperloglog_ce, &input) == FAILURE) {
+        RETVAL_FALSE;
+        goto cleanup;
+    }
+
+    int is_null = input == NULL || Z_TYPE_P(input) == IS_NULL;
+    if (is_null || Z_TYPE_P(input) == IS_BOOL) {
+        zend_bool allow_sparse = is_null ? 0 : Z_BVAL_P(input);
+        if (php_hll_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, allow_sparse) != SUCCESS) {
+            RETVAL_FALSE;
+            goto cleanup;
+        }
+    }
+    else if (Z_TYPE_P(input) == IS_STRING) {
+        if (php_hll_load(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, Z_STRVAL_P(input), Z_STRLEN_P(input)) != SUCCESS) {
+            RETVAL_FALSE;
+            goto cleanup;
+        }
+    }
+
+    int res = ZEND_REGISTER_RESOURCE(NULL, hll, hll_descriptor);
+    add_property_resource(object, "hll", res);
+
+cleanup:
+    zend_restore_error_handling(&error_handling TSRMLS_CC);
+    return;
+}
+/* }}} */
+
+/* {{{ proto resource hll_create([bool allowSparse = false]) */
+PHP_FUNCTION(hll_create)
+{
+    robj *hll;
+    zend_bool allow_sparse = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &allow_sparse) == FAILURE) {
+        RETVAL_FALSE;
+        goto cleanup;
+    }
+
+    if (php_hll_create(INTERNAL_FUNCTION_PARAM_PASSTHRU, &hll, allow_sparse) != SUCCESS) {
+        RETVAL_FALSE;
+        goto cleanup;
+    }
+
+    ZEND_REGISTER_RESOURCE(return_value, hll, hll_descriptor);
+
+cleanup:
+    return;
+}
+/* }}} */
+
+/* {{{ proto HyperLogLog HyperLogLog::merge ( mixed $hyperLogLog [ , mixed $... ])
+ * proto HyperLogLog HyperLogLog::merge ( array $hyperLogLogs )
+ */
+PHP_METHOD(HyperLogLog, merge)
+{
+    int argc = 0;
+    zval ***args = NULL;
+    hll *hll_sources = NULL;
+    int sources_len = 0;
+    zval *object, *hll_resource;
+
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O+", &object, hll_hyperloglog_ce, &args, &argc) == FAILURE) {
+        goto cleanup;
+    }
+
+    robj *hll_target = NULL;
+
+	hll_resource = zend_read_property(hll_hyperloglog_ce, object, ZEND_STRL("hll"), 0 TSRMLS_CC); \
+    ZEND_FETCH_RESOURCE(hll_target, robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor);
+    if (hll_target == NULL) {
+        php_error_docref(NULL TSRMLS_CC, E_ERROR, "HLL could not be retrieved");
+        goto fail;
+    }
+
+    if (argc == 1 && Z_TYPE_PP(*args) == IS_ARRAY) {
+        HashTable *hll_ht = Z_ARRVAL_PP(args[0]);
+        sources_len = zend_hash_num_elements(hll_ht) + 1;
+        hll_sources = emalloc(sizeof(hll) * sources_len);
+        if (php_hll_array_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, hll_ht, &hll_sources) != SUCCESS) {
+            goto fail;
+        }
+    }
+    else {
+        sources_len = argc + 1;
+        hll_sources = emalloc(sizeof(hll) * sources_len);
+        if (php_hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
+            goto fail;
+        }
+    }
+
+    if (sources_len < 2) {
+        zend_wrong_param_count(TSRMLS_C);
+        goto fail;
+    }
+
+    hll_sources[sources_len - 1] = hll_target;
+
+    if (pfMerge(hll_target, hll_sources, sources_len) != HLL_OK) {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expected array or resource");
+        goto fail;
+    }
+
+	RETVAL_ZVAL(getThis(), 1, 0);
+    goto cleanup;
+
+fail:
+    RETVAL_FALSE;
+    
+cleanup:
+    efree(hll_sources);
+    efree(args);
+    return;
+}
+/* }}} */
+
+/* {{{ proto resource hll_merge( mixed $hyperLogLog1 , mixed $hyperLogLog2 [ , mixed $... ])
+ * proto resource hll_merge( array $hyperLogLogs )
+ */
+PHP_FUNCTION(hll_merge)
+{
+    int argc = 0;
+    zval ***args = NULL;
+    hll *hll_sources = NULL;
+    int sources_len = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "+", &args, &argc) == FAILURE) {
+        goto cleanup;
+    }
+    
+    robj *hll_target = NULL;
+    hll_target = hllCreate();
+    if (hll_target == NULL) {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "HLL could not be created");
+        goto fail;
+    }
+
+    if (argc == 1 && Z_TYPE_PP(*args) == IS_ARRAY) {
+        HashTable *hll_ht = Z_ARRVAL_PP(args[0]);
+        sources_len = zend_hash_num_elements(hll_ht);
+        hll_sources = emalloc(sizeof(hll) * sources_len);
+        if (php_hll_array_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, hll_ht, &hll_sources) != SUCCESS) {
+            goto fail;
+        }
+    }
+    else {
+        sources_len = argc;
+        hll_sources = emalloc(sizeof(hll) * argc);
+        if (php_hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
+            goto fail;
+        }
+    }
+
+    if (sources_len < 2) {
+        zend_wrong_param_count(TSRMLS_C);
+        goto fail;
+    }
+
+    if (pfMerge(hll_target, hll_sources, sources_len) != HLL_OK) {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Expected array or resource");
+        goto fail;
+    }
+
+    ZEND_REGISTER_RESOURCE(return_value, hll_target, hll_descriptor);
+    goto cleanup;
+
+fail:
+    RETVAL_FALSE;
+    
+cleanup:
+    efree(hll_sources);
+    efree(args);
+    return;
+}
+/* }}} */
+
+/* {{{ proto HyperLogLog HyperLogLog::add( scalar $value , [ bool &$updated ])
+ * proto HyperLogLog HyperLogLog::add( array $values , [ bool &$updated ])
+ */
 ZEND_BEGIN_ARG_INFO_EX(ai_HyperLogLog_add, 0, 0, 1)
     ZEND_ARG_INFO(0, input)
     ZEND_ARG_INFO(1, updated)
 ZEND_END_ARG_INFO()
-PHP_METHOD(HyperLogLog, add) /* {{{2 */
+PHP_METHOD(HyperLogLog, add)
 {
     zval *object, *data;
     robj *hll;
@@ -529,9 +573,13 @@ fail:
     RETVAL_FALSE;
 cleanup:
     zend_restore_error_handling(&errorh TSRMLS_CC);
-} /* }}} */
+}
+/* }}} */
 
-PHP_FUNCTION(hll_add) /* {{{2 */
+/* {{{ proto bool hll_add ( resource $hll , scalar $value )
+ * proto bool hll_add ( resource $hll , array $values )
+ */
+PHP_FUNCTION(hll_add)
 {
     robj *hll;
     zval *hll_resource;
@@ -550,13 +598,11 @@ PHP_FUNCTION(hll_add) /* {{{2 */
 
 cleanup:
     RETURN_BOOL(updated == 1);
-} /* }}} */
-
+}
 /* }}} */
 
-/* hll_count() {{{ */
-
-PHP_METHOD(HyperLogLog, count) /* {{{2 */
+/* {{{ proto int HyperLogLog::count( void ) */
+PHP_METHOD(HyperLogLog, count)
 {
     HLL_OBJ_ARG_ONLY();
     uint64_t count = pfCount(hll);
@@ -564,9 +610,11 @@ PHP_METHOD(HyperLogLog, count) /* {{{2 */
 
 cleanup:
     return;
-} /* }}} */
+}
+/* }}} */
 
-PHP_FUNCTION(hll_count)/*{{{2*/
+/* {{{ proto int hll_count ( mixed $hll [ , mixed $... ]) */
+PHP_FUNCTION(hll_count)
 {
     hll *hll_sources = NULL;
     zval ***args = NULL;
@@ -578,7 +626,7 @@ PHP_FUNCTION(hll_count)/*{{{2*/
     }
 
     hll_sources = emalloc(sizeof(hll) * argc);
-    if (hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
+    if (php_hll_args_to_list(INTERNAL_FUNCTION_PARAM_PASSTHRU, args, argc, &hll_sources) != SUCCESS) {
         RETVAL_FALSE;
         goto cleanup;
     }
@@ -598,13 +646,11 @@ PHP_FUNCTION(hll_count)/*{{{2*/
 cleanup:
     efree(args);
     efree(hll_sources);
-}/*}}}*/
-
+}
 /* }}} */
 
-/* hll_promote() {{{ */
-
-PHP_METHOD(HyperLogLog, promote) /*{{{2*/
+/* {{{ proto HyperLogLog HyperLogLog::promote ( void ) */
+PHP_METHOD(HyperLogLog, promote)
 {
     HLL_OBJ_ARG_ONLY();
 
@@ -614,9 +660,11 @@ PHP_METHOD(HyperLogLog, promote) /*{{{2*/
 	RETVAL_ZVAL(getThis(), 1, 0);
 cleanup:
     return;
-} /*}}}*/
+}
+/* }}} */
 
-PHP_FUNCTION(hll_promote)/*{{{2*/
+/* {{{ proto void hll_promote ( resource $hll ) */
+PHP_FUNCTION(hll_promote)
 {
     HLL_ARG_ONLY();
     if (hllSparseToDense(hll) != HLL_OK) {
@@ -625,28 +673,11 @@ PHP_FUNCTION(hll_promote)/*{{{2*/
 
 cleanup:
     RETURN_NULL();
-}/*}}}*/
-
-/*}}}*/
-
-/* hll_info() {{{ */
-
-static int php_hll_info(INTERNAL_FUNCTION_PARAMETERS, robj *hll)
-{
-    array_init(return_value);
-
-    uint8_t type = ((struct hllhdr *)hll->ptr)->encoding;
-    if (type == HLL_DENSE)
-        add_assoc_string(return_value, "encoding", "dense", 1);
-    else if (type == HLL_SPARSE)
-        add_assoc_string(return_value, "encoding", "sparse", 1);
-    else 
-        add_assoc_string(return_value, "encoding", "unknown", 1);
-
-    return SUCCESS;
 }
+/* }}} */
 
-PHP_METHOD(HyperLogLog, info)/*{{{*/
+/* {{{ proto array HyperLogLog::info ( void ) */
+PHP_METHOD(HyperLogLog, info)
 {
     HLL_OBJ_ARG_ONLY();
     
@@ -658,9 +689,11 @@ PHP_METHOD(HyperLogLog, info)/*{{{*/
 
 cleanup:
     return;
-}/*}}}*/
+}
+/* }}} */
 
-PHP_FUNCTION(hll_info)/*{{{*/
+/* {{{ proto array hll_info ( resource $hll ) */
+PHP_FUNCTION(hll_info)
 {
     HLL_ARG_ONLY();
 
@@ -672,12 +705,11 @@ PHP_FUNCTION(hll_info)/*{{{*/
 
 cleanup:
     return;
-}/*}}}*/
+}
+/* }}} */
 
-/*}}}*/
-
-/* hll_dump() {{{ */
-PHP_METHOD(HyperLogLog, dump)/*{{{*/
+/* {{{ proto string HyperLogLog::dump ( void ) */
+PHP_METHOD(HyperLogLog, dump)
 {
     HLL_OBJ_ARG_ONLY();
 
@@ -687,9 +719,11 @@ PHP_METHOD(HyperLogLog, dump)/*{{{*/
 
 cleanup:
     return;
-}/*}}}*/
+}
+/* }}} */
 
-PHP_FUNCTION(hll_dump)/*{{{*/
+/* {{{ proto string hll_dump ( resource $hll ) */
+PHP_FUNCTION(hll_dump)
 {
     HLL_ARG_ONLY();
     
@@ -699,31 +733,10 @@ PHP_FUNCTION(hll_dump)/*{{{*/
 
 cleanup:
     return;
-}/*}}}*/
-/*}}}*/
-
-/* hll_load() {{{ */
-static int php_hll_load(INTERNAL_FUNCTION_PARAMETERS, robj **hll, char *input, int input_len)
-{
-    int ret = FAILURE;
-
-    sds input_sds = sdsnewlen(input, input_len);
-
-    int res = hllLoad(hll, input_sds);
-    if (*hll == NULL || res != HLL_OK) {
-        if (*hll != NULL) hllFree(*hll);
-        php_error_docref(NULL TSRMLS_CC, E_WARNING, "Supplied HLL dump was invalid");
-        RETVAL_FALSE;
-        goto cleanup;
-    }
-
-    ret = SUCCESS;
-
-cleanup:
-    if (input_sds != NULL) sdsfree(input_sds);
-    return ret;
 }
+/* }}} */
 
+/* {{{ proto resource hll_load ( string $hllDump ) */
 PHP_FUNCTION(hll_load)
 {
     char *input;
@@ -747,7 +760,7 @@ cleanup:
 /* }}} */
 
 const static zend_function_entry hll_hyperloglog_methods[] = {
-    PHP_ME(HyperLogLog, __construct, ai_HyperLogLog___construct, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, __construct, NULL, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
     PHP_ME(HyperLogLog, merge, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(HyperLogLog, add, ai_HyperLogLog_add, ZEND_ACC_PUBLIC)
     PHP_ME(HyperLogLog, count, NULL, ZEND_ACC_PUBLIC)
