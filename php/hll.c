@@ -43,11 +43,6 @@ static int php_hll_load(INTERNAL_FUNCTION_PARAMETERS, robj **hll, char *input, i
 
 /* hll_create(), HyperLogLog->__construct {{{ */
 
-ZEND_BEGIN_ARG_INFO_EX(ai_HyperLogLog___construct, 0, 0, 0)
-    ZEND_ARG_INFO(0, allowSparse)
-    ZEND_ARG_INFO(0, hllDump)
-ZEND_END_ARG_INFO()
-
 static int php_hll_create(INTERNAL_FUNCTION_PARAMETERS, robj **hll, zend_bool allow_sparse)
 {
     int ret = FAILURE;
@@ -74,6 +69,11 @@ cleanup:
     return ret;
 }
 
+
+ZEND_BEGIN_ARG_INFO_EX(ai_HyperLogLog___construct, 0, 0, 0)
+    ZEND_ARG_INFO(0, allowSparse)
+    ZEND_ARG_INFO(0, hllDump)
+ZEND_END_ARG_INFO()
 PHP_METHOD(HyperLogLog, __construct)
 {
     zval *object = NULL;
@@ -133,21 +133,6 @@ cleanup:
 }
 /* }}} */
 
-const static zend_function_entry hll_hyperloglog_methods[] = {
-    PHP_ME(HyperLogLog, __construct, ai_HyperLogLog___construct, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, merge, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, add, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, count, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, promote, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, info, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(HyperLogLog, dump, NULL, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
-
-const static zend_function_entry hll_hyperloglogexception_methods[] = {
-    PHP_FE_END
-};
-
 static void php_hll_descriptor_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
     robj *hll = (robj *)rsrc->ptr;
@@ -168,10 +153,10 @@ static int php_hll_serialize(zval *object, unsigned char **buffer, zend_uint *bu
     sds raw = hllRaw(hll);
     ZVAL_STRINGL(zv_ptr, raw, sdslen(raw), 0);
 	php_var_serialize(&buf, &zv_ptr, &serialize_data TSRMLS_CC);
+
     sdsfree(raw);
 
 	PHP_VAR_SERIALIZE_DESTROY(serialize_data);
-
 	*buffer = (unsigned char *) buf.c;
 	*buf_len = buf.len;
 
@@ -220,33 +205,6 @@ cleanup:
     zval_dtor(&zv);
     sdsfree(hll_str);
     return retval;
-}
-
-PHP_MINIT_FUNCTION(hll)
-{
-    zend_class_entry ce = {0};
-
-    hll_descriptor = zend_register_list_destructors_ex(
-        php_hll_descriptor_dtor, NULL, PHP_HLL_DESCRIPTOR_RES_NAME,
-        module_number);
-    
-    hll_ce: { 
-        INIT_CLASS_ENTRY(ce, "HyperLogLog", hll_hyperloglog_methods);
-        hll_hyperloglog_ce = zend_register_internal_class(&ce TSRMLS_CC);
-        hll_hyperloglog_ce->serialize = php_hll_serialize;
-        hll_hyperloglog_ce->unserialize = php_hll_unserialize;
-        hll_hyperloglog_ce->clone = NULL;
-
-        zend_declare_property_null(hll_hyperloglog_ce, ZEND_STRL("hll"), ZEND_ACC_PUBLIC TSRMLS_CC);
-    }
-
-    hll_exception: {
-        INIT_CLASS_ENTRY(ce, "HyperLogLogException", hll_hyperloglogexception_methods);
-        hll_hyperloglogexception_ce = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
-        hll_hyperloglogexception_ce->ce_flags |= ZEND_ACC_FINAL;
-    }
-
-    return SUCCESS;
 }
 
 static int hll_fetch_from_zval(zval *in, robj **out TSRMLS_DC)
@@ -528,32 +486,49 @@ cleanup:
         }
         efree(add_strings);
     }
+    
+    return SUCCESS;
 } /* }}} */
 
+
+ZEND_BEGIN_ARG_INFO_EX(ai_HyperLogLog_add, 0, 0, 1)
+    ZEND_ARG_INFO(0, input)
+    ZEND_ARG_INFO(1, updated)
+ZEND_END_ARG_INFO()
 PHP_METHOD(HyperLogLog, add) /* {{{2 */
 {
     zval *object, *data;
     robj *hll;
     int updated = 0;
     zend_error_handling errorh;
+    zval *upd_arg = NULL;
 
 	zend_replace_error_handling(EH_THROW, hll_hyperloglogexception_ce, &errorh TSRMLS_CC);
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", 
-                &object, hll_hyperloglog_ce, &data) == FAILURE) {
-        goto cleanup;
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), 
+            "Oz|z", &object, hll_hyperloglog_ce, &data, &upd_arg) == FAILURE) {
+        goto fail;
     }
-    
+
 	zval *hll_resource = zend_read_property(hll_hyperloglog_ce, object, ZEND_STRL("hll"), 0 TSRMLS_CC);
     ZEND_FETCH_RESOURCE(hll, robj *, &hll_resource, -1, PHP_HLL_DESCRIPTOR_RES_NAME, hll_descriptor);
 
     if (php_hll_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, hll, data, &updated) != SUCCESS) {
-        RETVAL_FALSE;
-        goto cleanup;
+        goto fail;
     }
 
+    if (upd_arg != NULL) {
+        zval ret;
+        ZVAL_BOOL(&ret, updated);
+        zval_dtor(upd_arg);
+		ZVAL_COPY_VALUE(upd_arg, &ret);
+    }
+
+	RETVAL_ZVAL(getThis(), 1, 0);
+    goto cleanup;
+fail:
+    RETVAL_FALSE;
 cleanup:
     zend_restore_error_handling(&errorh TSRMLS_CC);
-    RETURN_BOOL(updated == 1);
 } /* }}} */
 
 PHP_FUNCTION(hll_add) /* {{{2 */
@@ -636,9 +611,9 @@ PHP_METHOD(HyperLogLog, promote) /*{{{2*/
     if (hllSparseToDense(hll) != HLL_OK) {
         php_error_docref(NULL TSRMLS_CC, E_WARNING, "HLL could not be promoted");
     }
-
+	RETVAL_ZVAL(getThis(), 1, 0);
 cleanup:
-    RETURN_NULL();
+    return;
 } /*}}}*/
 
 PHP_FUNCTION(hll_promote)/*{{{2*/
@@ -771,6 +746,21 @@ cleanup:
 }
 /* }}} */
 
+const static zend_function_entry hll_hyperloglog_methods[] = {
+    PHP_ME(HyperLogLog, __construct, ai_HyperLogLog___construct, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, merge, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, add, ai_HyperLogLog_add, ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, count, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, promote, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, info, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(HyperLogLog, dump, NULL, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+
+const static zend_function_entry hll_hyperloglogexception_methods[] = {
+    PHP_FE_END
+};
+
 static zend_function_entry php_hll_functions[] = {
     PHP_FE(hll_create, NULL)
     PHP_FE(hll_add, NULL)
@@ -795,6 +785,33 @@ zend_module_entry hll_module_entry = {
     PHP_HLL_EXTVER,
     STANDARD_MODULE_PROPERTIES,
 };
+
+PHP_MINIT_FUNCTION(hll)
+{
+    zend_class_entry ce = {0};
+
+    hll_descriptor = zend_register_list_destructors_ex(
+        php_hll_descriptor_dtor, NULL, PHP_HLL_DESCRIPTOR_RES_NAME,
+        module_number);
+    
+    hll_ce: { 
+        INIT_CLASS_ENTRY(ce, "HyperLogLog", hll_hyperloglog_methods);
+        hll_hyperloglog_ce = zend_register_internal_class(&ce TSRMLS_CC);
+        hll_hyperloglog_ce->serialize = php_hll_serialize;
+        hll_hyperloglog_ce->unserialize = php_hll_unserialize;
+        hll_hyperloglog_ce->clone = NULL;
+
+        zend_declare_property_null(hll_hyperloglog_ce, ZEND_STRL("hll"), ZEND_ACC_PUBLIC TSRMLS_CC);
+    }
+
+    hll_exception: {
+        INIT_CLASS_ENTRY(ce, "HyperLogLogException", hll_hyperloglogexception_methods);
+        hll_hyperloglogexception_ce = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+        hll_hyperloglogexception_ce->ce_flags |= ZEND_ACC_FINAL;
+    }
+
+    return SUCCESS;
+}
 
 #ifdef COMPILE_DL_HLL
 ZEND_GET_MODULE(hll)

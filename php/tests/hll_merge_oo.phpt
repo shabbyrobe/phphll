@@ -63,7 +63,14 @@ $h3->add('jkl');
     $hself = new HyperLogLog();
     $hself->add('foo');
     $hself->merge($hself);
-    echo "Into itself: ".$hself->count();
+    echo "Into itself: ".$hself->count()."\n";
+}
+
+{ // fluent
+    $hflu1 = new HyperLogLog();
+    $hflu2 = new HyperLogLog();
+    $hflu2->add('a');
+    echo "Fluent: "; var_dump($hflu1->merge($hflu2) == $hflu1);
 }
 
 --EXPECT--
@@ -73,3 +80,5 @@ OO, 2-way into blank, array: 2 2 2 3
 OO, 3-way into blank, args:  2 2 2 4
 OO, 3-way into blank, array: 2 2 2 4
 Into itself: 1
+Fluent: bool(true)
+
