@@ -1,5 +1,5 @@
-Redis HyperLogLog PHP Extension
-===============================
+PHP HyperLogLog Extension
+=========================
 
 .. image:: https://travis-ci.org/shabbyrobe/phphll.svg
 
