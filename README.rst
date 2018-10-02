@@ -1,7 +1,8 @@
 PHP HyperLogLog Extension
 =========================
 
-.. image:: https://travis-ci.org/shabbyrobe/phphll.svg
+.. image:: https://travis-ci.org/shabbyrobe/phphll.svg?branch=master
+    :target: https://travis-ci.org/shabbyrobe/phphll
 
 This project lifts the ``hyperloglog.c`` implementation from Redis 2.8.19
 (http://redis.io) and wraps it in a PHP7 extension.
