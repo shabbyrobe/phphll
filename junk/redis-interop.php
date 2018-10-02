@@ -23,3 +23,6 @@ $pfcnt = hll_count($hll);
 
 $redis->set('testhll', hll_dump($hll));
 
+$rcnt = $redis->pfcount('testhll');
+echo "$rcnt $pfcnt\n";
+

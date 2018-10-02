@@ -12,6 +12,7 @@ echo "func:\n"; {
 
     $hll = hll_create();
     hll_add($hll, new NonStringableObject());
+    echo "\n";
     var_dump(hll_count($hll));
 
     // Should be equivalent to string 'Object'. Ideally you would let your script
@@ -39,12 +40,9 @@ echo "\nOO:\n"; {
 --EXPECTF--
 func:
 Caught fatal: Object of class NonStringableObject could not be converted to string
-Notice: Object of class NonStringableObject to string conversion in %s
 int(1)
 int(1)
 
 OO:
-
-Notice: Object of class NonStringableObject to string conversion in %s
 Object of class NonStringableObject could not be converted to string
 int(1)

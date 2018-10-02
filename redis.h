@@ -37,8 +37,10 @@
 #include <stdint.h>
 #include "sds.h"
 
-#define REDIS_OK                0
-#define REDIS_ERR               -1
+#define REDIS_OK            0
+#define REDIS_ERR           -1
+#define C_OK                REDIS_OK
+#define C_ERR               REDIS_ERR
 
 #ifdef NDEBUG
 #define debug(M, ...)
@@ -48,9 +50,12 @@
 #endif
 
 #define REDIS_STRING 0
+#define OBJ_STRING REDIS_STRING
 
 #define redisAssert(_e) ((_e)?(void)0 : (_redisAssert(#_e,__FILE__,__LINE__),_exit(1)))
+#define serverAssert(_e) ((_e)?(void)0 : (_redisAssert(#_e,__FILE__,__LINE__),_exit(1)))
 #define redisPanic(_e) _redisPanic(#_e,__FILE__,__LINE__),_exit(1)
+#define serverPanic(_e) _redisPanic(#_e,__FILE__,__LINE__),_exit(1)
 
 void _redisAssert(char *estr, char *file, int line);
 void _redisPanic(char *msg, char *file, int line);

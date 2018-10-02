@@ -1,3 +1,5 @@
+#include <inttypes.h>
+
 #include "hyperloglog.h"
 
 #include "utils.c"
@@ -16,14 +18,14 @@ int main(void)
         sds sdsbuf = sdsnewlen(buffer, len);
         // printf("%ld %s\n", sdslen(sdsbuf), sdsbuf);
         cnt++;
-        if (pfAdd(hll, sdsbuf) == REDIS_ERR) {
+        if (pfAdd(hll, sdsbuf) == C_ERR) {
             fprintf(stderr, "NOPE!\n");
             exit(1);
         }
         sdsfree(sdsbuf);
     }
 
-    printf("%ld %ld\n", cnt, pfCount(hll));;
+    printf("%"PRIu64" %"PRIu64"\n", cnt, pfCount(hll));
     hllFree(hll);
     free(buffer);
 }

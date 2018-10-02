@@ -31,12 +31,11 @@ php-full: libhll.a
 	cd php && phpize --clean && phpize && ./configure && make clean && make 
 
 php: libhll.a
-	cd php && make
+	cd php && phpize && ./configure && make
 
 php-test: php
 	cd php && NO_INTERACTION=1 TEST_PHP_ARGS=--show-diff make test
 
 php-memtest: php
-	cp run-tests.php php
 	cd php && echo 's' | TEST_PHP_ARGS=-m make test
 

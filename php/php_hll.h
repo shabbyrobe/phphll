@@ -4,7 +4,7 @@
 #include "php.h"
 
 #define PHP_HLL_EXTNAME "hll"
-#define PHP_HLL_EXTVER  "1.0"
+#define PHP_HLL_EXTVER  "2.0"
 #define PHP_HLL_DESCRIPTOR_RES_NAME "HyperLogLog"
 
 #ifdef ZTS
@@ -16,8 +16,6 @@
 #endif
 
 extern zend_module_entry hll_module_entry;
-
-#define phpext_hll_ptr &hll_module_entry;
 
 PHP_MINIT_FUNCTION(hll);
 

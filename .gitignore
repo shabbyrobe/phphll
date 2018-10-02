@@ -5,6 +5,7 @@ hllcnt
 *.a
 *.o
 *.so
+*.dSYM
 *.lo*
 tags
 
@@ -35,7 +36,6 @@ php/Makefile.objects
 php/missing
 php/mkinstalldirs
 php/modules
-php/run-tests.php
 
 php/php_test_results_*
 php/tests/*.out

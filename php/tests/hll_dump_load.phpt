@@ -34,9 +34,9 @@ function check_empty($hll)
 
 function verify($hll, $approxCount)
 {
-    $count = hll_count($hll);
-    $bin   = $hll instanceof HyperLogLog ? $hll->dump() : hll_dump($hll);
-    $check = $hll instanceof HyperLogLog ? new HyperLogLog($bin) : hll_load($bin);
+    $count  = hll_count($hll);
+    $bin    = $hll instanceof HyperLogLog ? $hll->dump() : hll_dump($hll);
+    $check  = $hll instanceof HyperLogLog ? new HyperLogLog($bin) : hll_load($bin);
     $result = hll_count($check);
 
     if ($result != $count) {

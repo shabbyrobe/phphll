@@ -4,7 +4,11 @@ PHP HyperLogLog Extension
 .. image:: https://travis-ci.org/shabbyrobe/phphll.svg
 
 This project lifts the ``hyperloglog.c`` implementation from Redis 2.8.19
-(http://redis.io) and wraps it in a PHP extension.
+(http://redis.io) and wraps it in a PHP7 extension.
+
+It is tested with PHP 7.1 and should work with any version of PHP7. If you need
+a version that supports PHP 5, try `this commit
+<https://github.com/shabbyrobe/phphll/commit/d3b30b00b5fe30b7da689dea288ec1b144ac5808>`_.
 
 Redis is copyright (c) 2014 Salvatore Sanfilippo. Full license details are found in
 ``COPYING`` at the root of this project. Further credit is due for the exceptional quality
@@ -21,9 +25,6 @@ in Redis [1]_:
 
 .. [1] http://antirez.com/news/75
 
-This extension is intended for situations where you want the flexibility of this data
-structure without the overhead of communicating with Redis.
-
 HyperLogLogs are magical! See for yourself... the memory usage in the following example
 stays stubbornly and hilariously low:
 
@@ -39,6 +40,10 @@ stays stubbornly and hilariously low:
         }
     }
 
+This extension is intended for situations where you want the flexibility of this data
+structure without the overhead of communicating with Redis.
+
+
 .. contents::
     :depth: 2
 
@@ -49,27 +54,28 @@ Warnings and Disclaimers
 - No guarantees of thread safety are currently made - Redis itself is designed
   to be run in a single process environment. Assume unsafe until demonstrated otherwise.
 
-- This extension has been tested using PHP 5.4, 5.5 and 5.6 on a 64-bit machine. YMMV -
-  please let me know if there are any failing or any missing tests.
+- This extension has been tested using PHP 7.1 on a 64-bit machine. YMMV - please let me
+  know if there are any failing or any missing tests.
 
 - Dumping and loading methods are provided, but if the internal structure of the
   HyperLogLog representation changes in any backwards incompatible way, no guarantees are
-  currently made that dumping and loading will work in this scenario.
+  currently made that dumping and loading will work from version to version, and no
+  compatibility methods will be provided.
 
 - HyperLogLog objects are not currently cloneable (though this is in the works)
 
-- This no longer works with 5.2 or 5.3 (though I'm trying to work out a way to make it
-  possible to at least support 5.3). The last version compatible with 5.2 and 5.3 can be
-  downloaded here: https://github.com/shabbyrobe/phphll/tree/5.2-compatible
+- This no longer works with any PHP 5 version. The last version compatible with PHP 5.4
+  and up can be downloaded here: https://github.com/shabbyrobe/phphll/tree/5.4-compatible
+  The last version compatible with 5.2 and 5.3 can be downloaded here:
+  https://github.com/shabbyrobe/phphll/tree/5.2-compatible
 
 
 Bogus Benchmarks
 ----------------
 
 Here are some numbers for the time it takes to use HyperLogLog to calculate the
-cardinality using Redis + PHP, Redis + C, and this extension. Apparently you can make some
-pretty outrageous time savings if you're using HyperLogLog intensively and don't require
-Redis.
+cardinality using Redis + PHP, Redis + C, and this extension. You can make some pretty
+outrageous time savings if you're using HyperLogLog intensively and don't require Redis.
 
 This test was run using a file containing 31793623 random items with a cardinality of 243.
 Feel free to point out all the many terrible things I've done wrong here, it's the only
