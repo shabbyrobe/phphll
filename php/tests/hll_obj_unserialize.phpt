@@ -5,7 +5,9 @@ HyperLogLog() unserialize()
 require 'helpers.inc';
 
 try {
-    unserialize('C:11:"HyperLogLog":11:{alkwefjalwef}');
+    // The '@' operator is required to silence a notice on PHP 7.2:
+    // "Notice: unserialize(): Error at offset 23 of 36 bytes in /home/travis/build/shabbyrobe/phphll"
+    @unserialize('C:11:"HyperLogLog":11:{alkwefjalwef}');
 } catch (Exception $ex) {
     echo $ex->getMessage()."\n";
 }
