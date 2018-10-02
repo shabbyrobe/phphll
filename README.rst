@@ -6,9 +6,8 @@ PHP HyperLogLog Extension
 This project lifts the ``hyperloglog.c`` implementation from Redis 2.8.19
 (http://redis.io) and wraps it in a PHP7 extension.
 
-It is tested with PHP 7.1 and should work with any version of PHP7. If you need
-a version that supports PHP 5, try `this commit
-<https://github.com/shabbyrobe/phphll/commit/d3b30b00b5fe30b7da689dea288ec1b144ac5808>`_.
+It is tested with PHP 7.0 to 7.2. If you need a version that supports PHP 5, try `this
+commit <https://github.com/shabbyrobe/phphll/commit/d3b30b00b5fe30b7da689dea288ec1b144ac5808>`_.
 
 Redis is copyright (c) 2014 Salvatore Sanfilippo. Full license details are found in
 ``COPYING`` at the root of this project. Further credit is due for the exceptional quality
@@ -54,8 +53,8 @@ Warnings and Disclaimers
 - No guarantees of thread safety are currently made - Redis itself is designed
   to be run in a single process environment. Assume unsafe until demonstrated otherwise.
 
-- This extension has been tested using PHP 7.1 on a 64-bit machine. YMMV - please let me
-  know if there are any failing or any missing tests.
+- This extension has been tested using PHP 7.0, 7.1 and 7.2 on a 64-bit machine. YMMV -
+  please let me know if there are any failing or any missing tests.
 
 - Dumping and loading methods are provided, but if the internal structure of the
   HyperLogLog representation changes in any backwards incompatible way, no guarantees are
