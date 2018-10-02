@@ -29,6 +29,5 @@ try {
 }
 
 --EXPECTF--
-Could not unserialize HLL
 Could not create HLL from unserialized string
 HyperLogLog::__construct(): Supplied HLL dump was invalid
