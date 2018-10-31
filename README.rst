@@ -7,6 +7,11 @@ PHP HyperLogLog Extension
 This project lifts the ``hyperloglog.c`` implementation from Redis 2.8.19
 (http://redis.io) and wraps it in a PHP7 extension.
 
+This is a C extension, not a pure PHP implementation. Use this extension if your HyperLogLog
+needs are performance critical and you are in control of your PHP installation. If neither 
+of those things is true, you may be better served by this `pure PHP implementation 
+<https://github.com/mrjgreen/HyperLogLog>`_.
+
 It is tested with PHP 7.0 to 7.2. If you need a version that supports PHP 5, try `this
 commit <https://github.com/shabbyrobe/phphll/commit/d3b30b00b5fe30b7da689dea288ec1b144ac5808>`_.
 
