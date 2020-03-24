@@ -23,7 +23,14 @@ echo "func:\n"; {
         echo "Caught fatal: {$e->getMessage()}";
     }
     echo "\n";
-    var_dump(hll_count($hll));
+
+    // Note: prior to 7.4, the hll is modified even when the string conversion
+    // fails. 7.4 adds try_convert_string, which solves the problem:
+    if (version_compare(PHP_VERSION, '7.4.0') >= 0) {
+        var_dump(hll_count($hll));
+    } else {
+        var_dump(hll_count($hll) - 1);
+    }
 
     // Should be equivalent to string 'Object'. Ideally you would let your script
     // die before this anyway.
@@ -47,6 +54,13 @@ echo "\nOO:\n"; {
         echo $ex->getMessage()."\n";
     }
 
+    // See note above about 7.4:
+    if (version_compare(PHP_VERSION, '7.4.0') >= 0) {
+        var_dump(hll_count($hll));
+    } else {
+        var_dump(hll_count($hll) - 1);
+    }
+
     $hll->add("Object");
     var_dump($hll->count());
 }
@@ -55,10 +69,11 @@ echo "\nOO:\n"; {
 func:
 int(0)
 Caught fatal: Object of class NonStringableObject could not be converted to string
-int(1)
+int(0)
 int(1)
 
 OO:
 int(0)
 Object of class NonStringableObject could not be converted to string
+int(0)
 int(1)
