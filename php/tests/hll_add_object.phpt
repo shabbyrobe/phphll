@@ -19,7 +19,6 @@ echo "func:\n"; {
         hll_add($hll, new NonStringableObject());
     } catch (Throwable $e) {
         echo "Caught fatal: {$e->getMessage()}";
-        return true;
     }
     echo "\n";
     var_dump(hll_count($hll));
