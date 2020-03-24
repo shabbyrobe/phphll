@@ -17,7 +17,8 @@ echo "func:\n"; {
     $hll = hll_create();
     try {
         hll_add($hll, new NonStringableObject());
-    } catch (Throwable $e) {
+    }
+    catch (Throwable $e) { // 7.4
         echo "Caught fatal: {$e->getMessage()}";
     }
     echo "\n";
@@ -39,6 +40,9 @@ echo "\nOO:\n"; {
     }
     catch (\HyperLogLogException $hex) {
         echo $hex->getMessage()."\n";
+    }
+    catch (\Throwable $ex) { // 7.4
+        echo $ex->getMessage()."\n";
     }
 
     $hll->add("Object");

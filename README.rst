@@ -12,7 +12,7 @@ needs are performance critical and you are in control of your PHP installation. 
 of those things is true, you may be better served by this `pure PHP implementation 
 <https://github.com/mrjgreen/HyperLogLog>`_.
 
-It is tested with PHP 7.0 to 7.2. If you need a version that supports PHP 5, try `this
+It is tested with PHP 7.0 to 7.4. If you need a version that supports PHP 5, try `this
 commit <https://github.com/shabbyrobe/phphll/commit/d3b30b00b5fe30b7da689dea288ec1b144ac5808>`_.
 
 Redis is copyright (c) 2014 Salvatore Sanfilippo. Full license details are found in
