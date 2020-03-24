@@ -6,12 +6,21 @@ require 'helpers.inc';
 
 class NonStringableObject{}
 
+if (!interface_exists('Throwable')) {
+    class Throwable extends Exception {}
+}
+
 echo "func:\n"; {
     // Outputs the error, allows the script to continue
     set_error_handler('eh_catch_recoverable');
 
     $hll = hll_create();
-    hll_add($hll, new NonStringableObject());
+    try {
+        hll_add($hll, new NonStringableObject());
+    } catch (Throwable $e) {
+        echo "Caught fatal: {$e->getMessage()}";
+        return true;
+    }
     echo "\n";
     var_dump(hll_count($hll));
 
