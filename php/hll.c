@@ -294,7 +294,7 @@ static int php_hll_add(INTERNAL_FUNCTION_PARAMETERS, robj *hll, zval *data, int 
         if (*updated == HLL_ERR) {
             php_error_docref(NULL, E_WARNING, "Could not add element to HyperLogLog");
         }
-        ret = SUCCESS
+        ret = SUCCESS;
     break;
 
     case IS_ARRAY: ;
