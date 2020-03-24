@@ -15,9 +15,9 @@ echo "func:\n"; {
     set_error_handler('eh_catch_recoverable');
 
     $hll = hll_create();
+    var_dump(hll_count($hll));
     try {
         hll_add($hll, new NonStringableObject());
-        echo "uh oh\n";
     }
     catch (Throwable $e) { // 7.4
         echo "Caught fatal: {$e->getMessage()}";
@@ -35,6 +35,7 @@ echo "func:\n"; {
 
 echo "\nOO:\n"; {
     $hll = new HyperLogLog();
+    var_dump(hll_count($hll));
 
     try {
         $hll->add(new NonStringableObject());
@@ -52,10 +53,12 @@ echo "\nOO:\n"; {
 
 --EXPECTF--
 func:
+int(0)
 Caught fatal: Object of class NonStringableObject could not be converted to string
 int(1)
 int(1)
 
 OO:
+int(0)
 Object of class NonStringableObject could not be converted to string
 int(1)
