@@ -17,6 +17,7 @@ echo "func:\n"; {
     $hll = hll_create();
     try {
         hll_add($hll, new NonStringableObject());
+        echo "uh oh\n";
     }
     catch (Throwable $e) { // 7.4
         echo "Caught fatal: {$e->getMessage()}";
