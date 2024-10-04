@@ -1,5 +1,12 @@
 # PHP HyperLogLog Extension
 
+> [!WARNING]  
+> This is no longer maintained and will probably not be updated for PHP 8 and beyond.
+> The repo has been moved to https://git.sr.ht/~shabbyrobe/phphll and will be removed
+> from Github at some point in the future.
+
+---
+
 This project lifts the `hyperloglog.c` implementation from Redis 2.8.19
 (http://redis.io) and wraps it in a PHP7 extension.
 
